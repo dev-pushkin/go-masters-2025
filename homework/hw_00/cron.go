@@ -84,9 +84,7 @@ func (c *c) add(taskFunc Task, t time.Time) {
 
 func new() *c {
 	in := make(chan *task)
-	tasks := make([]*task, 0)
 	return &c{
-		in:    in,
-		tasks: tasks,
+		in: in,
 	}
 }
