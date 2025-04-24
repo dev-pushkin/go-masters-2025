@@ -19,6 +19,10 @@ type c struct {
 	tasks []*task
 }
 
+func Add(task Task, t time.Time) {
+	cron.add(task, t)
+}
+
 // Логика работы планировщика:
 // 1. Кейс с тикером каждую секунду проверяет, есть ли задачи в массиве tasks, которые нужно выполнить по времени
 // 2. Кейс с каналом in принимает новые задачи и добавляет их в массив tasks, сортируя по времени выполнения
@@ -49,10 +53,19 @@ func (c *c) run() {
 				continue
 			}
 
-			// запускаем задачу в отдельной горутине
-			go c.execueFuncWithRecover(firstTask.taskFunc)
-			// удаляем задачу из массива задач
-			c.tasks = c.tasks[1:]
+			for firstTask.scheduledTime.Before(time.Now()) {
+				// запускаем задачу в отдельной горутине
+				go c.execueFuncWithRecover(firstTask.taskFunc)
+				// удаляем задачу из массива задач
+				c.tasks = c.tasks[1:]
+				if len(c.tasks) > 0 {
+					firstTask = c.tasks[0]
+				} else {
+					break
+				}
+
+			}
+
 			c.mu.Unlock()
 		}
 
