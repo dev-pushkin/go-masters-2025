@@ -2,26 +2,24 @@ package cache
 
 import "time"
 
-type val[K comparable, V any] struct {
-	k   K
+type val[V any] struct {
 	v   V
 	ttl int64
 	// функция, которая будет вызвана при истечении ttl
-	deleteFunc func(K)
+	deleteFunc func()
 }
 
-func newVal[K comparable, V any](key K, value V, ttl int64) *val[K, V] {
-	return &val[K, V]{
-		k:   key,
+func newVal[V any](value V, ttl int64) *val[V] {
+	return &val[V]{
 		v:   value,
 		ttl: ttl,
 	}
 }
 
-func (v *val[K, V]) run() {
+func (v *val[V]) run() {
 	if v.ttl <= 0 {
 		return
 	}
 	<-time.NewTimer(time.Duration(v.ttl) * time.Second).C
-	v.deleteFunc(v.k)
+	v.deleteFunc()
 }

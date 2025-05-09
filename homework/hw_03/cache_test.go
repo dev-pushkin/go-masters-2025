@@ -30,7 +30,7 @@ func Test_Cache_SetWithTtl(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			c := New[string, int]()
-			c.SetWithTTL(tt.args.key, tt.args.value, tt.args.ttl)
+			c.Set(tt.args.key, tt.args.value, tt.args.ttl)
 			if got := c.Get(tt.args.key); got != tt.want {
 				t.Errorf("Cache value = %v, want %v", got, tt.want)
 			}
@@ -43,10 +43,11 @@ func Test_Cache_SetWithTtl(t *testing.T) {
 	}
 }
 
-func Test_Cache_Set(t *testing.T) {
+func Test_Cache_Set_With_zero_ttl(t *testing.T) {
 	type args struct {
 		key   string
 		value int
+		ttl   int64
 	}
 	tests := []struct {
 		name string
@@ -58,6 +59,7 @@ func Test_Cache_Set(t *testing.T) {
 			args: args{
 				key:   "testKey",
 				value: 42,
+				ttl:   0,
 			},
 			want: 42,
 		},
@@ -65,7 +67,7 @@ func Test_Cache_Set(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			c := New[string, int]()
-			c.Set(tt.args.key, tt.args.value)
+			c.Set(tt.args.key, tt.args.value, tt.args.ttl)
 			if got := c.Get(tt.args.key); got != tt.want {
 				t.Errorf("Cache value = %v, want %v", got, tt.want)
 			}
