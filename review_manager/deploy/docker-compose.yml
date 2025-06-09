@@ -1,0 +1,116 @@
+version: "3.8"
+
+services:
+  ## Main application service
+  app:
+    build: ../../.
+    ports:
+      - "8080:8080"
+    depends_on:
+      - tempo
+      - postgres
+      - ollama
+    command: ./server
+
+  ## Database service
+  # PostgreSQL database for the application
+  postgres:
+    image: postgres:latest
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: root
+      POSTGRES_DB: review_manager
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  ## Ollama service for AI model serving
+  ollama:
+    image: ollama/ollama
+    container_name: ollama_app
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    restart: unless-stopped
+    entrypoint: >
+      /bin/sh -c "
+        ollama serve &
+        sleep 3 &&
+        ollama pull qwen2.5:3b &&
+        tail -f /dev/null
+      "
+
+  ## Tempo service for distributed tracing
+  tempo:
+    image: grafana/tempo:latest
+    command: ["-config.file=/etc/tempo.yaml"]
+    volumes:
+      - ./configs/tempo.yaml:/etc/tempo.yaml
+    ports:
+      - "4317:4317" # OTLP gRPC
+      - "3200:3200" # Tempo UI
+
+  ## Grafana service for monitoring and visualization
+  grafana:
+    image: grafana/grafana:latest
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    volumes:
+      - grafana-storage:/var/lib/grafana
+
+  prometheus:
+    image: prom/prometheus:latest
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+    ports:
+      - "9090:9090"
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--web.listen-address=:9090"
+
+  mongo:
+    image: mongo:4.2
+    container_name: mongo
+    restart: always
+
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch-oss:7.10.2
+    container_name: elasticsearch
+    environment:
+      - discovery.type=single-node
+      - ES_JAVA_OPTS=-Xms1g -Xmx1g
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+    mem_limit: 2g
+    restart: always
+
+  graylog:
+    image: graylog/graylog:5.2
+    container_name: graylog
+    depends_on:
+      - mongo
+      - elasticsearch
+    environment:
+      GRAYLOG_PASSWORD_SECRET: someverysecretvalue1234567890
+      GRAYLOG_ROOT_PASSWORD_SHA2: 8c6976e5b5410415bde908bd4dee15dfb16b7a64b2960f42cbd1b4f2aefc5f6e
+      GRAYLOG_HTTP_BIND_ADDRESS: 0.0.0.0:9000
+      GRAYLOG_HTTP_EXTERNAL_URI: http://localhost:9000/
+    entrypoint: /usr/bin/tini -- wait-for-it elasticsearch:9200 -- /docker-entrypoint.sh
+    ports:
+      - "9000:9000" # Web interface
+      - "12201:12201/udp" # GELF UDP input
+    volumes:
+      - graylog_data:/usr/share/graylog/data
+    restart: always
+
+volumes:
+  ollama_data:
+  grafana-storage:
+  postgres_data:
+  graylog_data:
