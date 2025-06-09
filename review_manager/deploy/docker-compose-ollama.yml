@@ -1,0 +1,21 @@
+version: "3.8"
+
+services:
+  ollama:
+    image: ollama/ollama
+    container_name: ollama_app
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    restart: unless-stopped
+    entrypoint: >
+      /bin/sh -c "
+        ollama serve &
+        sleep 3 &&
+        ollama pull qwen2.5:3b &&
+        tail -f /dev/null
+      "
+
+volumes:
+  ollama_data:
